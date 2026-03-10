@@ -2,200 +2,20 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <ctype.h>
 
-FILE *archivo_salida;
-char *texto_entrada;
-int pos_actual = 0;
-double yylval_real;
-int linea_actual = 1;
+#define MAX_LINEA 1000
 
-enum {
-    NUMERO = 258,
-    SQRT = 259,
-    FIN_LINEA = 260
-};
-
-int token_actual;
-
-int yylex();
-void yyerror(const char *s);
-int yyparse();
 double newton_raphson(double x);
-double expresion();
-double termino();
-double factor();
-double potencia();
-
-int yylex() {
-    while(1) {
-        char c = texto_entrada[pos_actual];
-        
-        if(c == '\0') return 0;
-        
-        if(c == ' ' || c == '\t') {
-            pos_actual++;
-            continue;
-        }
-        
-        if(c == '\n') {
-            pos_actual++;
-            linea_actual++;
-            return FIN_LINEA;
-        }
-        
-        if((c >= '0' && c <= '9') || c == '.') {
-            char buffer[100];
-            int i = 0;
-            while((texto_entrada[pos_actual] >= '0' && texto_entrada[pos_actual] <= '9') || 
-                   texto_entrada[pos_actual] == '.') {
-                buffer[i++] = texto_entrada[pos_actual++];
-            }
-            buffer[i] = '\0';
-            yylval_real = atof(buffer);
-            return NUMERO;
-        }
-        
-        if(c == 's') {
-            if(strncmp(&texto_entrada[pos_actual], "sqrt", 4) == 0) {
-                pos_actual += 4;
-                return SQRT;
-            }
-        }
-        
-        pos_actual++;
-        return c;
-    }
-}
-
-double potencia() {
-    double resultado = factor();
-    
-    while(token_actual == '^') {
-        token_actual = yylex();
-        resultado = pow(resultado, factor());
-    }
-    
-    return resultado;
-}
-
-double factor() {
-    double resultado = 0;
-    
-    if(token_actual == NUMERO) {
-        resultado = yylval_real;
-        token_actual = yylex();
-    }
-    else if(token_actual == SQRT) {
-        token_actual = yylex();
-        if(token_actual == '(') {
-            token_actual = yylex();
-            double val = expresion();
-            if(token_actual == ')') {
-                token_actual = yylex();
-                resultado = newton_raphson(val);
-            } else {
-                yyerror("Esperaba ')'");
-                token_actual = yylex();
-            }
-        } else {
-            yyerror("Esperaba '('");
-        }
-    }
-    else if(token_actual == '(') {
-        token_actual = yylex();
-        resultado = expresion();
-        if(token_actual == ')') {
-            token_actual = yylex();
-        } else {
-            yyerror("Esperaba ')'");
-        }
-    }
-    else if(token_actual == '-') {
-        token_actual = yylex();
-        resultado = -factor();
-    }
-    else {
-        yyerror("Expresion invalida");
-    }
-    
-    return resultado;
-}
-
-double termino() {
-    double resultado = potencia();
-    
-    while(1) {
-        if(token_actual == '*') {
-            token_actual = yylex();
-            resultado = resultado * potencia();
-        }
-        else if(token_actual == '/') {
-            token_actual = yylex();
-            double divisor = potencia();
-            if(divisor == 0) {
-                fprintf(archivo_salida, "Error: Division por cero\n");
-                resultado = 0;
-            } else {
-                resultado = resultado / divisor;
-            }
-        }
-        else {
-            break;
-        }
-    }
-    return resultado;
-}
-
-double expresion() {
-    double resultado = termino();
-    
-    while(1) {
-        if(token_actual == '+') {
-            token_actual = yylex();
-            resultado = resultado + termino();
-        }
-        else if(token_actual == '-') {
-            token_actual = yylex();
-            resultado = resultado - termino();
-        }
-        else {
-            break;
-        }
-    }
-    return resultado;
-}
-
-int yyparse() {
-    token_actual = yylex();
-    
-    while(token_actual != 0) {
-        if(token_actual == FIN_LINEA) {
-            token_actual = yylex();
-            continue;
-        }
-        
-        double res = expresion();
-        
-        if(token_actual == FIN_LINEA || token_actual == 0) {
-            fprintf(archivo_salida, "Resultado: %g\n", res);
-        } else {
-            fprintf(archivo_salida, "Error de sintaxis en linea %d\n", linea_actual);
-            while(token_actual != 0 && token_actual != FIN_LINEA) {
-                token_actual = yylex();
-            }
-        }
-        
-        if(token_actual == FIN_LINEA) {
-            token_actual = yylex();
-        }
-    }
-    
-    return 0;
-}
+double evaluar_expresion(char *expr, int *pos, int *error);
+double evaluar_termino(char *expr, int *pos, int *error);
+double evaluar_factor(char *expr, int *pos, int *error);
+double evaluar_potencia(char *expr, int *pos, int *error);
+double obtener_numero(char *expr, int *pos, int *error);
 
 double newton_raphson(double x) {
     if(x < 0) {
-        fprintf(archivo_salida, "Error: Raiz cuadrada de numero negativo\n");
+        printf("Error: Raiz cuadrada de numero negativo\n");
         return 0;
     }
     if(x == 0) return 0;
@@ -213,8 +33,137 @@ double newton_raphson(double x) {
     return aprox;
 }
 
-void yyerror(const char *s) {
-    fprintf(archivo_salida, "Error linea %d: %s\n", linea_actual, s);
+double obtener_numero(char *expr, int *pos, int *error) {
+    char buffer[100];
+    int i = 0;
+    
+    while(isdigit(expr[*pos]) || expr[*pos] == '.') {
+        buffer[i++] = expr[*pos];
+        (*pos)++;
+    }
+    buffer[i] = '\0';
+    
+    if(i == 0) {
+        *error = 1;
+        return 0;
+    }
+    
+    return atof(buffer);
+}
+
+double evaluar_factor(char *expr, int *pos, int *error) {
+    double resultado = 0;
+    
+    // Saltar espacios
+    while(expr[*pos] == ' ') (*pos)++;
+    
+    if(expr[*pos] == '(') {
+        (*pos)++;
+        resultado = evaluar_expresion(expr, pos, error);
+        while(expr[*pos] == ' ') (*pos)++;
+        if(expr[*pos] == ')') {
+            (*pos)++;
+        } else {
+            *error = 1;
+        }
+    }
+    else if(strncmp(&expr[*pos], "sqrt", 4) == 0) {
+        (*pos) += 4;
+        while(expr[*pos] == ' ') (*pos)++;
+        if(expr[*pos] == '(') {
+            (*pos)++;
+            double val = evaluar_expresion(expr, pos, error);
+            while(expr[*pos] == ' ') (*pos)++;
+            if(expr[*pos] == ')') {
+                (*pos)++;
+                resultado = newton_raphson(val);
+            } else {
+                *error = 1;
+            }
+        } else {
+            *error = 1;
+        }
+    }
+    else if(expr[*pos] == '-') {
+        (*pos)++;
+        resultado = -evaluar_factor(expr, pos, error);
+    }
+    else if(isdigit(expr[*pos]) || expr[*pos] == '.') {
+        resultado = obtener_numero(expr, pos, error);
+    }
+    else {
+        *error = 1;
+    }
+    
+    return resultado;
+}
+
+double evaluar_potencia(char *expr, int *pos, int *error) {
+    double resultado = evaluar_factor(expr, pos, error);
+    
+    while(!*error) {
+        while(expr[*pos] == ' ') (*pos)++;
+        
+        if(expr[*pos] == '^') {
+            (*pos)++;
+            double exp = evaluar_factor(expr, pos, error);
+            resultado = pow(resultado, exp);
+        } else {
+            break;
+        }
+    }
+    
+    return resultado;
+}
+
+double evaluar_termino(char *expr, int *pos, int *error) {
+    double resultado = evaluar_potencia(expr, pos, error);
+    
+    while(!*error) {
+        while(expr[*pos] == ' ') (*pos)++;
+        
+        if(expr[*pos] == '*') {
+            (*pos)++;
+            resultado = resultado * evaluar_potencia(expr, pos, error);
+        }
+        else if(expr[*pos] == '/') {
+            (*pos)++;
+            double divisor = evaluar_potencia(expr, pos, error);
+            if(divisor == 0) {
+                printf("Error: Division por cero\n");
+                resultado = 0;
+            } else {
+                resultado = resultado / divisor;
+            }
+        }
+        else {
+            break;
+        }
+    }
+    
+    return resultado;
+}
+
+double evaluar_expresion(char *expr, int *pos, int *error) {
+    double resultado = evaluar_termino(expr, pos, error);
+    
+    while(!*error) {
+        while(expr[*pos] == ' ') (*pos)++;
+        
+        if(expr[*pos] == '+') {
+            (*pos)++;
+            resultado = resultado + evaluar_termino(expr, pos, error);
+        }
+        else if(expr[*pos] == '-') {
+            (*pos)++;
+            resultado = resultado - evaluar_termino(expr, pos, error);
+        }
+        else {
+            break;
+        }
+    }
+    
+    return resultado;
 }
 
 int main(int argc, char **argv) {
@@ -223,40 +172,45 @@ int main(int argc, char **argv) {
         return 1;
     }
     
-    FILE *entrada = fopen(argv[1], "r");
-    if(!entrada) {
+    FILE *archivo = fopen(argv[1], "r");
+    if(!archivo) {
         printf("Error: No se puede abrir %s\n", argv[1]);
         return 1;
     }
     
-    fseek(entrada, 0, SEEK_END);
-    long tamano = ftell(entrada);
-    fseek(entrada, 0, SEEK_SET);
-    
-    texto_entrada = malloc(tamano + 1);
-    if(texto_entrada == NULL) {
-        printf("Error: No se pudo asignar memoria\n");
-        fclose(entrada);
-        return 1;
-    }
-    
-    size_t leidos = fread(texto_entrada, 1, tamano, entrada);
-    texto_entrada[leidos] = '\0';
-    
-    fclose(entrada);
-    
-    archivo_salida = stdout;
-    pos_actual = 0;
-    linea_actual = 1;
+    char linea[MAX_LINEA];
+    int num_linea = 0;
     
     printf("Procesando: %s\n", argv[1]);
     printf("------------------------------------\n");
     
-    yyparse();
+    while(fgets(linea, MAX_LINEA, archivo)) {
+        num_linea++;
+        
+        // Eliminar salto de línea
+        linea[strcspn(linea, "\n")] = '\0';
+        
+        // Saltar líneas vacías
+        if(strlen(linea) == 0) continue;
+        
+        int pos = 0;
+        int error = 0;
+        
+        double resultado = evaluar_expresion(linea, &pos, &error);
+        
+        // Verificar que no queden caracteres sin procesar
+        while(linea[pos] == ' ') pos++;
+        
+        if(!error && linea[pos] == '\0') {
+            printf("Linea %d: %s = %g\n", num_linea, linea, resultado);
+        } else {
+            printf("Linea %d: %s = Error de sintaxis\n", num_linea, linea);
+        }
+    }
     
+    fclose(archivo);
     printf("------------------------------------\n");
     printf("Procesamiento completado\n");
     
-    free(texto_entrada);
     return 0;
 }
