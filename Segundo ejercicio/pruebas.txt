@@ -1,0 +1,8 @@
+variable1
+Contador
+x
+# Estos son los que deben ser ACEPTADOS (3)
+
+2variable
+variable@
+# Estos son los que deben ser NO ACEPTADOS (2)
