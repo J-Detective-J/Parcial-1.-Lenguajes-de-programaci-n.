@@ -16,12 +16,14 @@ enum {
 };
 
 int token_actual;
-double valor_token;
 
 int yylex();
 void yyerror(const char *s);
 int yyparse();
 double newton_raphson(double x);
+double expresion();
+double termino();
+double factor();
 
 int yylex() {
     while(1) {
@@ -64,20 +66,62 @@ int yylex() {
     }
 }
 
-double expr();
+double expresion() {
+    double resultado = termino();
+    
+    while(1) {
+        if(token_actual == '+') {
+            token_actual = yylex();
+            resultado = resultado + termino();
+        }
+        else if(token_actual == '-') {
+            token_actual = yylex();
+            resultado = resultado - termino();
+        }
+        else {
+            break;
+        }
+    }
+    return resultado;
+}
 
-double expr() {
+double termino() {
+    double resultado = factor();
+    
+    while(1) {
+        if(token_actual == '*') {
+            token_actual = yylex();
+            resultado = resultado * factor();
+        }
+        else if(token_actual == '/') {
+            token_actual = yylex();
+            double divisor = factor();
+            if(divisor == 0) {
+                fprintf(archivo_salida, "Error: Division por cero\n");
+                resultado = 0;
+            } else {
+                resultado = resultado / divisor;
+            }
+        }
+        else {
+            break;
+        }
+    }
+    return resultado;
+}
+
+double factor() {
     double resultado = 0;
     
     if(token_actual == NUMERO) {
-        resultado = valor_token;
+        resultado = yylval_real;
         token_actual = yylex();
     }
     else if(token_actual == SQRT) {
         token_actual = yylex();
         if(token_actual == '(') {
             token_actual = yylex();
-            double val = expr();
+            double val = expresion();
             if(token_actual == ')') {
                 token_actual = yylex();
                 resultado = newton_raphson(val);
@@ -90,7 +134,7 @@ double expr() {
     }
     else if(token_actual == '(') {
         token_actual = yylex();
-        resultado = expr();
+        resultado = expresion();
         if(token_actual == ')') {
             token_actual = yylex();
         } else {
@@ -99,42 +143,14 @@ double expr() {
     }
     else if(token_actual == '-') {
         token_actual = yylex();
-        resultado = -expr();
+        resultado = -factor();
+    }
+    else if(token_actual == '^') {
+        token_actual = yylex();
+        resultado = pow(factor(), factor());
     }
     else {
         yyerror("Expresion invalida");
-    }
-    
-    while(1) {
-        if(token_actual == '+') {
-            token_actual = yylex();
-            resultado = resultado + expr();
-        }
-        else if(token_actual == '-') {
-            token_actual = yylex();
-            resultado = resultado - expr();
-        }
-        else if(token_actual == '*') {
-            token_actual = yylex();
-            resultado = resultado * expr();
-        }
-        else if(token_actual == '/') {
-            token_actual = yylex();
-            double divisor = expr();
-            if(divisor == 0) {
-                fprintf(archivo_salida, "Error: Division por cero\n");
-                resultado = 0;
-            } else {
-                resultado = resultado / divisor;
-            }
-        }
-        else if(token_actual == '^') {
-            token_actual = yylex();
-            resultado = pow(resultado, expr());
-        }
-        else {
-            break;
-        }
     }
     
     return resultado;
@@ -148,17 +164,16 @@ int yyparse() {
             continue;
         }
         
-        double res = expr();
+        double res = expresion();
         if(token_actual == FIN_LINEA || token_actual == 0) {
             fprintf(archivo_salida, "Resultado: %g\n", res);
-            token_actual = yylex();
         } else {
             yyerror("Error de sintaxis");
             while(token_actual != 0 && token_actual != FIN_LINEA) {
                 token_actual = yylex();
             }
-            if(token_actual == FIN_LINEA) token_actual = yylex();
         }
+        if(token_actual == FIN_LINEA) token_actual = yylex();
     }
     return 0;
 }
