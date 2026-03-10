@@ -54,7 +54,6 @@ double obtener_numero(char *expr, int *pos, int *error) {
 double evaluar_factor(char *expr, int *pos, int *error) {
     double resultado = 0;
     
-    // Saltar espacios
     while(expr[*pos] == ' ') (*pos)++;
     
     if(expr[*pos] == '(') {
@@ -187,18 +186,17 @@ int main(int argc, char **argv) {
     while(fgets(linea, MAX_LINEA, archivo)) {
         num_linea++;
         
-        // Eliminar salto de línea
         linea[strcspn(linea, "\n")] = '\0';
         
-        // Saltar líneas vacías
-        if(strlen(linea) == 0) continue;
+        if(strlen(linea) == 0) {
+            continue;
+        }
         
         int pos = 0;
         int error = 0;
         
         double resultado = evaluar_expresion(linea, &pos, &error);
         
-        // Verificar que no queden caracteres sin procesar
         while(linea[pos] == ' ') pos++;
         
         if(!error && linea[pos] == '\0') {
