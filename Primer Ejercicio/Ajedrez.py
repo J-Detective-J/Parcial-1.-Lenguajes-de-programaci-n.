@@ -75,16 +75,16 @@ class ValidadorAjedrez:
         # Si terminamos en DESTINO, es válido
         return self.estado_actual == self.estados["DESTINO"]
     
-    def validar_archivo(self, movimientos):
+    def validar_archivo(self):
         # Valida todos los movimientos en un archivo
         try:
-            with open("movimientos.txt") as archivo:
+            with open("movimiento.txt", "r", encoding="utf-8") as archivo:
                 lineas = archivo.readlines()
             
             print("=" * 50)
             print("VALIDACIÓN DE MOVIMIENTOS DE AJEDREZ")
             print("=" * 50)
-            print("Archivo: movimiento")
+            print("Archivo: movimiento.txt")
             print("Piezas: K=Rey, R=Reina, T=Torre, A=Alfil, C=Caballo, P=Peón")
             print("-" * 50)
             
@@ -96,29 +96,27 @@ class ValidadorAjedrez:
                 if movimiento and not movimiento.startswith("#"):  # Ignorar líneas vacías y comentarios
                     es_valido = self.validar(movimiento)
                     if es_valido:
-                        print("Línea {i:2d}: {movimiento}")
+                        print(f"Línea {i:2d}: {movimiento}")
                         validos += 1
                     else:
-                        print("Línea {i:2d}: {movimiento}")
+                        print(f"Línea {i:2d}: {movimiento}")
                         invalidos += 1
             
             print("-" * 50)
             print("RESUMEN:")
-            print("  Total movimientos: {validos + invalidos}")
-            print("  Válidos: {validos}")
-            print("  Inválidos: {invalidos}")
+            print(f"  Total movimientos: {validos + invalidos}")
+            print(f"  Válidos: {validos}")
+            print(f"  Inválidos: {invalidos}")
             print("=" * 50)
             
         except FileNotFoundError:
-            print("Error: No se encontró el archivo 'movimiento'")
+            print("Error: No se encontró el archivo 'movimiento.txt'")
         except Exception as e:
-            print("Error al leer el archivo: {e}")
+            print(f"Error al leer el archivo: {e}")
 
 
 # Programa
 if __name__ == "__main__":
-    import sys
-    
     # Crear validador y procesar archivo
     validador = ValidadorAjedrez()
-    validador.validar_archivo(movimientos)
+    validador.validar_archivo()
