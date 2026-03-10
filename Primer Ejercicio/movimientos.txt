@@ -1,5 +1,0 @@
-P->K4
-KTA X RA
-C->F3
-# Este es un comentario
-T X A5
