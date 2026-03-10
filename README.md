@@ -10,8 +10,7 @@ Instalar las siguientes herramientas:
 
 - Python 3
 - GCC
-- Flex
-- Bison
+
 
 En sistemas basados en Debian o Kali Linux:
 
